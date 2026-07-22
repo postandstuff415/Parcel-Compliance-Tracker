@@ -9,7 +9,7 @@ import {
 } from "@workspace/api-client-react";
 import { ParcelStatus } from "@workspace/api-client-react";
 import { format } from "date-fns";
-import { Search, MapPin, AlertTriangle, CheckCircle, Clock, ShieldAlert, Activity, ClipboardList, Camera } from "lucide-react";
+import { Search, MapPin, AlertTriangle, CheckCircle, Clock, ShieldAlert, Activity, ClipboardList, Camera, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -21,8 +21,10 @@ import { CitationModal } from "@/components/CitationModal";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/context/auth-context";
 
 export default function InspectorDashboard() {
+  const { inspector, logout } = useAuth();
   const [selectedApn, setSelectedApn] = useState<string | null>(null);
   const [filter, setFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -190,7 +192,9 @@ export default function InspectorDashboard() {
         </div>
         
         <div className="p-3 border-t border-slate-800 text-xs text-slate-500 flex justify-between items-center bg-slate-900">
-          <span>Insp. Martinez #4821</span>
+          <span className="font-mono text-slate-400 font-medium">
+            {inspector ? `${inspector.name} #${inspector.badge}` : "Insp. Martinez #4821"}
+          </span>
           <Link href="/resident-portal" className="text-blue-400 hover:text-blue-300">Portal Test</Link>
         </div>
         <div className="p-3 border-t border-slate-800 text-[9px] text-slate-600 bg-slate-950 text-center uppercase tracking-widest leading-relaxed">
@@ -218,6 +222,20 @@ export default function InspectorDashboard() {
           </div>
           <div className="flex items-center gap-4 text-xs font-mono">
             <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" /> SYSTEM ONLINE</span>
+            {inspector && (
+              <span className="text-slate-500 border-l border-slate-800 pl-4">
+                {inspector.name} <span className="text-slate-600">#{inspector.badge}</span>
+              </span>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={logout}
+              className="h-7 px-2.5 text-slate-400 hover:text-red-400 hover:bg-red-950/40 border border-transparent hover:border-red-900/50 transition-all font-mono tracking-wider text-[11px]"
+            >
+              <LogOut className="w-3.5 h-3.5 mr-1.5" />
+              SIGN OUT
+            </Button>
           </div>
         </header>
 
