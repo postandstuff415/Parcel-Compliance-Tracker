@@ -1,11 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Link } from "wouter";
-import { Camera, MapPin, ChevronRight, ShieldCheck, AlertCircle, RefreshCw, UploadCloud, Info, CheckCircle2 } from "lucide-react";
+import { Camera, MapPin, ChevronRight, ShieldCheck, AlertCircle, RefreshCw, Info, CheckCircle2 } from "lucide-react";
 import { 
-  useVerifyResidentPin, 
   useGetResidentParcelStatus, 
   useSubmitResidentInspection,
-  getGetResidentParcelStatusQueryKey
 } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,8 +37,8 @@ export default function ResidentPortal() {
       </header>
 
       <main className="flex-1 flex flex-col items-center p-6 max-w-4xl mx-auto w-full">
-        {step === 0 && <StepZero pin={pin} setPin={setPin} apn={apn} setApn={setApn} onNext={(verifiedApn: string) => { setApn(verifiedApn); setStep(1); }} />}
-        {step === 1 && <StepOne apn={apn} setApn={setApn} onNext={() => setStep(2)} />}
+        {step === 0 && <StepZero onNext={(verifiedApn: string) => { setApn(verifiedApn); setStep(1); }} />}
+        {step === 1 && <StepOne apn={apn} onNext={() => setStep(2)} />}
         {step === 2 && <StepTwoWizard apn={apn} onComplete={(capturedPhotos: any[]) => { setPhotos(capturedPhotos); setStep(3); }} />}
         {step === 3 && <StepThree apn={apn} photos={photos} submitterName={submitterName} setSubmitterName={setSubmitterName} certified={certified} setCertified={setCertified} onNext={() => setStep(4)} />}
         {step === 4 && <StepFour />}
@@ -59,39 +57,56 @@ function Badge({ children, className }: { children: React.ReactNode, className?:
   return <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider border ${className}`}>{children}</span>;
 }
 
-// Step 0: PIN
-function StepZero({ pin, setPin, apn, setApn, onNext }: any) {
-  const verify = useVerifyResidentPin();
-  const { toast } = useToast();
+// Step 0: PIN — no API calls here; demo mode unlocks immediately
+function StepZero({ onNext }: { onNext: (apn: string) => void }) {
+  const [apn, setApn] = useState("");
+  const [pin, setPin] = useState("");
 
   const handleUnlock = () => {
-    // Demo mode: any input (or empty) immediately unlocks the demo parcel
+    // Demo: any input (or blank) unlocks 5820 Skyline Blvd
     onNext("048-5612-014-00");
   };
 
   return (
-    <div className="w-full max-w-md mt-12 animate-in fade-in duration-500">
+    <div className="w-full max-w-md mt-12">
       <Card className="border-slate-200 shadow-xl shadow-slate-200/50">
         <CardHeader className="text-center pb-2">
           <div className="mx-auto w-12 h-12 bg-blue-100 text-blue-700 flex items-center justify-center rounded-full mb-4">
             <ShieldCheck className="w-6 h-6" />
           </div>
-          <CardTitle className="text-2xl font-bold">Secure Access</CardTitle>
+          <CardTitle className="text-2xl font-bold text-slate-900">Secure Access</CardTitle>
           <CardDescription className="text-base mt-2">Enter your access PIN provided by your inspector.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 pt-4">
           <div className="space-y-2">
-            <Label className="text-slate-600">Assessor Parcel Number</Label>
-            <Input placeholder="e.g. 048-5612-014-00" value={apn} onChange={(e) => setApn(e.target.value)} className="text-center font-mono text-lg bg-slate-50" />
+            <Label className="text-slate-700 font-medium">Assessor Parcel Number</Label>
+            <Input
+              placeholder="e.g. 048-5612-014-00"
+              value={apn}
+              onChange={(e) => setApn(e.target.value)}
+              className="text-center font-mono text-base text-slate-900 bg-white border-slate-300"
+            />
           </div>
           <div className="space-y-2">
-            <Label className="text-slate-600">6-Digit PIN</Label>
-            <Input placeholder="••••••" maxLength={6} value={pin} onChange={(e) => setPin(e.target.value.replace(/[^0-9]/g, ''))} className="text-center font-mono text-2xl tracking-[0.5em] h-14 bg-slate-50" />
+            <Label className="text-slate-700 font-medium">6-Digit PIN</Label>
+            <Input
+              placeholder="123456"
+              maxLength={6}
+              value={pin}
+              onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
+              className="text-center font-mono text-xl tracking-[0.4em] h-14 text-slate-900 bg-white border-slate-300"
+            />
           </div>
-          <p className="text-xs text-slate-500 flex justify-center mt-2"><Info className="w-3 h-3 mr-1" /> Try PIN "123456" for demo</p>
+          <p className="text-xs text-slate-500 flex items-center justify-center gap-1 mt-1">
+            <Info className="w-3 h-3" /> Enter PIN "123456" with any APN for demo
+          </p>
         </CardContent>
-        <CardFooter>
-          <Button className="w-full h-12 text-lg bg-blue-700 hover:bg-blue-800" onClick={handleUnlock}>
+        <CardFooter className="pt-2 pb-6">
+          <Button
+            type="button"
+            className="w-full h-12 text-base font-semibold bg-blue-700 hover:bg-blue-800 text-white"
+            onClick={handleUnlock}
+          >
             Unlock Portal
           </Button>
         </CardFooter>
@@ -100,67 +115,122 @@ function StepZero({ pin, setPin, apn, setApn, onNext }: any) {
   );
 }
 
-// Step 1: APN Lookup
-function StepOne({ apn, setApn, onNext }: any) {
-  const { data: status, isLoading } = useGetResidentParcelStatus(apn, { 
-    query: { enabled: !!apn, queryKey: getGetResidentParcelStatusQueryKey(apn) } 
+// Fallback demo data shown if the API call fails
+const DEMO_STATUS = {
+  apn: "048-5612-014-00",
+  address: "5820 Skyline Blvd, Oakland CA 94611",
+  ownerName: "Patricia Hernandez",
+  status: "pending_review" as const,
+  riskLevel: "high" as const,
+  fuelScores: { zone0: 0.82, zone1: 0.74, zone2: 0.68, composite: 0.75 },
+  pendingTasks: [
+    "Clear combustible materials within 5 ft of structure (Zone 0)",
+    "Remove dead vegetation from ember zone",
+    "Thin vegetation to 3 ft separation within 30 ft (Zone 1)",
+  ],
+};
+
+// Step 1: Parcel status + launch wizard
+function StepOne({ apn, onNext }: { apn: string; onNext: () => void }) {
+  const [queryApn, setQueryApn] = useState(apn);
+  const { data, isLoading, isError, refetch } = useGetResidentParcelStatus(queryApn, {
+    query: { queryKey: [`/api/resident/parcel-status/${queryApn}`], retry: 1 },
   });
 
+  const status = data ?? (isError ? DEMO_STATUS : undefined);
+
+  const statusColors: Record<string, string> = {
+    compliant: "bg-green-100 text-green-800 border-green-300",
+    non_compliant: "bg-red-100 text-red-800 border-red-300",
+  };
+
   return (
-    <div className="w-full max-w-2xl mt-8 animate-in fade-in duration-500">
-      <div className="flex gap-4 mb-8">
-        <Input placeholder="Enter APN" value={apn} onChange={(e) => setApn(e.target.value)} className="h-12 text-lg font-mono bg-white" />
-        <Button className="h-12 px-8 bg-slate-900 text-white">Look Up</Button>
+    <div className="w-full max-w-2xl mt-8">
+      {/* APN search bar */}
+      <div className="flex gap-3 mb-6">
+        <Input
+          placeholder="Assessor Parcel Number"
+          value={queryApn}
+          onChange={(e) => setQueryApn(e.target.value)}
+          className="h-11 font-mono text-slate-900 bg-white border-slate-300"
+        />
+        <Button
+          type="button"
+          className="h-11 px-6 bg-slate-900 hover:bg-slate-700 text-white shrink-0"
+          onClick={() => refetch()}
+        >
+          Look Up
+        </Button>
       </div>
 
-      {isLoading ? <div className="flex justify-center p-12"><RefreshCw className="w-8 h-8 animate-spin text-slate-400" /></div> : status ? (
+      {/* Loading */}
+      {isLoading && (
+        <div className="flex flex-col items-center justify-center gap-3 py-16 text-slate-500">
+          <RefreshCw className="w-8 h-8 animate-spin" />
+          <p className="text-sm font-medium">Loading parcel data…</p>
+        </div>
+      )}
+
+      {/* Error notice */}
+      {isError && (
+        <div className="flex items-center gap-2 mb-4 px-4 py-2 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          Showing demo data — live API unavailable.
+        </div>
+      )}
+
+      {/* Parcel card */}
+      {!isLoading && status && (
         <Card className="border-slate-200 shadow-md">
           <CardHeader className="bg-slate-50 border-b border-slate-200">
-            <div className="flex justify-between items-start">
+            <div className="flex justify-between items-start gap-4">
               <div>
-                <CardTitle className="text-xl font-bold">{status.address}</CardTitle>
+                <CardTitle className="text-xl font-bold text-slate-900">{status.address}</CardTitle>
                 <CardDescription className="font-mono text-sm mt-1">APN: {status.apn}</CardDescription>
               </div>
-              <Badge className={
-                status.status === "compliant" ? "bg-green-100 text-green-800 border-green-300" :
-                status.status === "non_compliant" ? "bg-red-100 text-red-800 border-red-300" :
-                "bg-amber-100 text-amber-800 border-amber-300"
-              }>{status.status.replace("_", " ")}</Badge>
+              <Badge className={statusColors[status.status] ?? "bg-amber-100 text-amber-800 border-amber-300"}>
+                {status.status.replace(/_/g, " ")}
+              </Badge>
             </div>
           </CardHeader>
           <CardContent className="pt-6 space-y-6">
             <div className="grid grid-cols-3 gap-4">
-              <div className="p-4 bg-slate-50 border rounded-lg text-center">
-                <div className="text-xs font-bold text-slate-500">ZONE 0</div>
-                <div className="text-2xl font-mono mt-1">{(status.fuelScores.zone0 * 100).toFixed(0)}</div>
-              </div>
-              <div className="p-4 bg-slate-50 border rounded-lg text-center">
-                <div className="text-xs font-bold text-slate-500">ZONE 1</div>
-                <div className="text-2xl font-mono mt-1">{(status.fuelScores.zone1 * 100).toFixed(0)}</div>
-              </div>
-              <div className="p-4 bg-slate-50 border rounded-lg text-center">
-                <div className="text-xs font-bold text-slate-500">ZONE 2</div>
-                <div className="text-2xl font-mono mt-1">{(status.fuelScores.zone2 * 100).toFixed(0)}</div>
-              </div>
+              {(["zone0", "zone1", "zone2"] as const).map((z, i) => (
+                <div key={z} className="p-4 bg-slate-50 border rounded-lg text-center">
+                  <div className="text-xs font-bold text-slate-500 uppercase">Zone {i}</div>
+                  <div className="text-2xl font-mono mt-1 text-slate-900">
+                    {Math.round(status.fuelScores[z] * 100)}
+                  </div>
+                  <div className="text-xs text-slate-400 mt-0.5">fuel score</div>
+                </div>
+              ))}
             </div>
             {status.pendingTasks && status.pendingTasks.length > 0 && (
               <div>
-                <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2"><AlertCircle className="w-5 h-5 text-amber-500" /> Pending Tasks</h3>
+                <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
+                  <AlertCircle className="w-5 h-5 text-amber-500" /> Pending Tasks
+                </h3>
                 <ul className="space-y-2">
                   {status.pendingTasks.map((task, i) => (
-                    <li key={i} className="flex gap-3 p-3 bg-red-50 border border-red-100 rounded-md text-sm text-red-900"><span className="font-bold">•</span> {task}</li>
+                    <li key={i} className="flex gap-3 p-3 bg-red-50 border border-red-100 rounded-md text-sm text-red-900">
+                      <span className="font-bold shrink-0">•</span> {task}
+                    </li>
                   ))}
                 </ul>
               </div>
             )}
           </CardContent>
           <CardFooter className="bg-slate-50 border-t pt-6">
-            <Button className="w-full h-14 text-lg bg-green-700 hover:bg-green-800" onClick={onNext}>
-              Start Self-Inspection Walkthrough <ChevronRight className="ml-2 w-5 h-5" />
+            <Button
+              type="button"
+              className="w-full h-14 text-lg font-semibold bg-green-700 hover:bg-green-800 text-white"
+              onClick={onNext}
+            >
+              Begin Zone Walkthrough <ChevronRight className="ml-2 w-5 h-5" />
             </Button>
           </CardFooter>
         </Card>
-      ) : null}
+      )}
     </div>
   );
 }
