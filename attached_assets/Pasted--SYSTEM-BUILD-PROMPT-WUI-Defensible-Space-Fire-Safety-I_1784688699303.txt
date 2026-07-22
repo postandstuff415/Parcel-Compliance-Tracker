@@ -1,0 +1,54 @@
+# SYSTEM BUILD PROMPT: WUI Defensible Space & Fire Safety Inspection Engine
+
+You are building a full-stack MVP web application for municipal fire inspectors (specifically optimized for Oakland Fire Department and Alameda County GIS protocols).
+
+## 1. TECH STACK & REQUIREMENTS
+- **Framework:** Next.js (App Router), React, TypeScript
+- **Styling:** Tailwind CSS, Shadcn UI / Lucide React Icons
+- **Mapping & Spatial:** Mapbox GL JS (or Leaflet), PostGIS / Turf.js for spatial buffering
+- **Database Schema:** Supabase / PostgreSQL (Include PostGIS tables for parcels, inspections, and citations)
+- **API Integration:** Alameda County ArcGIS REST API endpoints for APN parcel ingestion & Sentinel-2 / NAIP aerial imagery layer toggles.
+
+---
+
+## 2. CORE FEATURES TO BUILD
+
+### A. Alameda County GIS Integration & Ingestion
+- Create a mock/real integration service that connects to Alameda County's Esri ArcGIS REST Feature Server.
+- Import Assessor Parcel Numbers (APNs), owner metadata, property addresses, and parcel polygon geometries.
+- Allow searching/filtering by APN (e.g., "048-5612-014-00") or street address (e.g., "Skyline Blvd, Oakland").
+
+### B. Defensible Space Spatial Buffer Engine
+- When a parcel is selected, generate 3 dynamic spatial buffer rings around the structure footprint:
+- **Zone 0 (0-5 ft):** Ember-resistant immediate structure perimeter (Red highlight if non-compliant).
+- **Zone 1 (5-30 ft):** Lean, green, and clean clearance zone (Yellow highlight).
+- **Zone 2 (30-100 ft):** Reduced fuel zone (Green highlight).
+- Implement an algorithm/mock scoring function that evaluates simulated NDVI (Normalized Difference Vegetation Index) fuel density within these zones to produce a **Composite Fuel Score (0.00 to 1.00)**.
+
+### C. Fire Inspector Web Dashboard UI
+- **Left Sidebar:**
+- List of WUI parcels queued for review, sorted by highest fuel risk score.
+- Filter by status: `Pending Review`, `Compliant (Passed)`, `Non-Compliant (Violation)`.
+- Filter by WUI risk level (High / Medium / Low).
+- **Main View Area:**
+- Interactive split-screen layout.
+- **Interactive Map Canvas:** Displays Alameda County parcel vectors, Mapbox high-res satellite tiles, and the 3 colored defensible space buffer rings.
+- Layer toggles for Satellite, Topography, Street Map, and NDVI Vegetation Heatmap.
+- **Action Control Panel:**
+- Display numerical fuel scores for Zone 0, Zone 1, and Zone 2.
+- Inspector notes text area.
+- Action buttons: `[Approve Compliance]`, `[Flag Violation & Issue Notice]`, `[Request In-Person Site Visit]`.
+
+### D. Automated Citation & Notice Generator
+- Clicking `[Flag Violation & Issue Notice]` opens a clean modal previewing a formal **Notice of Non-Compliance**.
+- Automatically populate: Notice Number, Date, Owner Address, APN, Inspector Badge ID, deadline (30 days from today), and a captured spatial satellite thumbnail of the property.
+- Include a `[Print / Export PDF]` button that formats the citation for municipal mailing.
+
+---
+
+## 3. DESIGN & BRANDING
+- Professional, dark/light municipal government dashboard aesthetic (Slate / Navy / Emergency Red accents).
+- Explicit trade secret footer on all pages:
+"CONFIDENTIAL & PROPRIETARY — Intellectual Property & Trade Secret of Michael Thompson. Protected under CA Civil Code § 3426."
+
+Build out the full UI, components, mock data streams, Mapbox views, and backend API handlers now.

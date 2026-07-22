@@ -3,13 +3,23 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: WUI Fire Safety Inspection Engine API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: parcels
+    description: Parcel operations
+  - name: inspections
+    description: Inspection operations
+  - name: citations
+    description: Citation operations
+  - name: resident
+    description: Resident self-service portal operations
+  - name: dashboard
+    description: Dashboard summary operations
 paths:
   /healthz:
     get:
@@ -24,6 +34,307 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /parcels:
+    get:
+      operationId: listParcels
+      tags: [parcels]
+      summary: List all parcels
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [pending_review, compliant, non_compliant, self_inspection_submitted]
+        - in: query
+          name: riskLevel
+          schema:
+            type: string
+            enum: [high, medium, low]
+        - in: query
+          name: search
+          schema:
+            type: string
+          description: Search by APN or address
+      responses:
+        "200":
+          description: List of parcels
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Parcel"
+
+  /parcels/{apn}:
+    get:
+      operationId: getParcel
+      tags: [parcels]
+      summary: Get a parcel by APN
+      parameters:
+        - in: path
+          name: apn
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Parcel details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Parcel"
+        "404":
+          description: Parcel not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateParcelStatus
+      tags: [parcels]
+      summary: Update a parcel's status or inspector notes
+      parameters:
+        - in: path
+          name: apn
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ParcelStatusUpdate"
+      responses:
+        "200":
+          description: Updated parcel
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Parcel"
+        "404":
+          description: Parcel not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /parcels/{apn}/photos:
+    get:
+      operationId: getParcelPhotos
+      tags: [parcels]
+      summary: Get resident-submitted photos for a parcel
+      parameters:
+        - in: path
+          name: apn
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of submitted photos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ResidentPhoto"
+
+  /inspections:
+    get:
+      operationId: listInspections
+      tags: [inspections]
+      summary: List all inspections
+      parameters:
+        - in: query
+          name: apn
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of inspections
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Inspection"
+    post:
+      operationId: createInspection
+      tags: [inspections]
+      summary: Create a new inspection record
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InspectionInput"
+      responses:
+        "201":
+          description: Inspection created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Inspection"
+
+  /inspections/{id}:
+    get:
+      operationId: getInspection
+      tags: [inspections]
+      summary: Get inspection details
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Inspection details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Inspection"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /citations:
+    post:
+      operationId: createCitation
+      tags: [citations]
+      summary: Create a new citation/notice of non-compliance
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CitationInput"
+      responses:
+        "201":
+          description: Citation created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Citation"
+
+  /citations/{id}:
+    get:
+      operationId: getCitation
+      tags: [citations]
+      summary: Get citation by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Citation details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Citation"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /resident/verify-pin:
+    post:
+      operationId: verifyResidentPin
+      tags: [resident]
+      summary: Verify resident QR/PIN token to unlock parcel access
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PinVerification"
+      responses:
+        "200":
+          description: PIN verified, returns parcel info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PinVerificationResult"
+        "401":
+          description: Invalid PIN
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /resident/parcel-status/{apn}:
+    get:
+      operationId: getResidentParcelStatus
+      tags: [resident]
+      summary: Get parcel compliance status for resident view
+      parameters:
+        - in: path
+          name: apn
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Resident-facing parcel status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResidentParcelStatus"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /resident/submit:
+    post:
+      operationId: submitResidentInspection
+      tags: [resident]
+      summary: Submit resident self-inspection photos
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResidentSubmission"
+      responses:
+        "201":
+          description: Submission accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResidentSubmissionResult"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Get dashboard summary statistics
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +345,458 @@ components:
       required:
         - status
 
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    ZoneScores:
+      type: object
+      properties:
+        zone0:
+          type: number
+          description: Fuel score 0-1 for Zone 0 (0-5ft ember-resistant zone)
+        zone1:
+          type: number
+          description: Fuel score 0-1 for Zone 1 (5-30ft lean & clean)
+        zone2:
+          type: number
+          description: Fuel score 0-1 for Zone 2 (30-100ft fuel reduction)
+        composite:
+          type: number
+          description: Composite fuel score 0-1
+      required:
+        - zone0
+        - zone1
+        - zone2
+        - composite
+
+    ParcelGeometry:
+      type: object
+      properties:
+        lat:
+          type: number
+        lng:
+          type: number
+        boundaryPoints:
+          type: array
+          items:
+            type: object
+            properties:
+              lat:
+                type: number
+              lng:
+                type: number
+            required:
+              - lat
+              - lng
+      required:
+        - lat
+        - lng
+        - boundaryPoints
+
+    Parcel:
+      type: object
+      properties:
+        apn:
+          type: string
+          description: Assessor Parcel Number
+        address:
+          type: string
+        ownerName:
+          type: string
+        ownerEmail:
+          type: ["string", "null"]
+        ownerPhone:
+          type: ["string", "null"]
+        city:
+          type: string
+        state:
+          type: string
+        zip:
+          type: string
+        status:
+          type: string
+          enum: [pending_review, compliant, non_compliant, self_inspection_submitted]
+        riskLevel:
+          type: string
+          enum: [high, medium, low]
+        fuelScores:
+          $ref: "#/components/schemas/ZoneScores"
+        geometry:
+          $ref: "#/components/schemas/ParcelGeometry"
+        inspectorNotes:
+          type: ["string", "null"]
+        lastInspectedAt:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - apn
+        - address
+        - ownerName
+        - city
+        - state
+        - zip
+        - status
+        - riskLevel
+        - fuelScores
+        - geometry
+        - createdAt
+        - updatedAt
+
+    ParcelStatusUpdate:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [pending_review, compliant, non_compliant, self_inspection_submitted]
+        inspectorNotes:
+          type: string
+
+    Inspection:
+      type: object
+      properties:
+        id:
+          type: string
+        apn:
+          type: string
+        inspectorId:
+          type: string
+        inspectorBadge:
+          type: string
+        status:
+          type: string
+          enum: [pending_review, compliant, non_compliant, site_visit_requested]
+        fuelScores:
+          $ref: "#/components/schemas/ZoneScores"
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - apn
+        - inspectorId
+        - inspectorBadge
+        - status
+        - fuelScores
+        - createdAt
+        - updatedAt
+
+    InspectionInput:
+      type: object
+      properties:
+        apn:
+          type: string
+        inspectorId:
+          type: string
+        inspectorBadge:
+          type: string
+        status:
+          type: string
+          enum: [pending_review, compliant, non_compliant, site_visit_requested]
+        fuelScores:
+          $ref: "#/components/schemas/ZoneScores"
+        notes:
+          type: string
+      required:
+        - apn
+        - inspectorId
+        - inspectorBadge
+        - status
+        - fuelScores
+
+    Citation:
+      type: object
+      properties:
+        id:
+          type: string
+        noticeNumber:
+          type: string
+        apn:
+          type: string
+        ownerName:
+          type: string
+        ownerAddress:
+          type: string
+        inspectorBadge:
+          type: string
+        issuedDate:
+          type: string
+        deadlineDate:
+          type: string
+        violations:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+          enum: [issued, resolved, appealed]
+        createdAt:
+          type: string
+      required:
+        - id
+        - noticeNumber
+        - apn
+        - ownerName
+        - ownerAddress
+        - inspectorBadge
+        - issuedDate
+        - deadlineDate
+        - violations
+        - status
+        - createdAt
+
+    CitationInput:
+      type: object
+      properties:
+        apn:
+          type: string
+        inspectorBadge:
+          type: string
+        violations:
+          type: array
+          items:
+            type: string
+      required:
+        - apn
+        - inspectorBadge
+        - violations
+
+    PinVerification:
+      type: object
+      properties:
+        apn:
+          type: string
+        pin:
+          type: string
+      required:
+        - apn
+        - pin
+
+    PinVerificationResult:
+      type: object
+      properties:
+        verified:
+          type: boolean
+        apn:
+          type: string
+        address:
+          type: string
+        ownerName:
+          type: string
+        status:
+          type: string
+        pendingTasks:
+          type: array
+          items:
+            type: string
+      required:
+        - verified
+        - apn
+        - address
+        - ownerName
+        - status
+        - pendingTasks
+
+    ResidentParcelStatus:
+      type: object
+      properties:
+        apn:
+          type: string
+        address:
+          type: string
+        ownerName:
+          type: string
+        status:
+          type: string
+        riskLevel:
+          type: string
+        fuelScores:
+          $ref: "#/components/schemas/ZoneScores"
+        pendingTasks:
+          type: array
+          items:
+            type: string
+        lastInspectedAt:
+          type: ["string", "null"]
+      required:
+        - apn
+        - address
+        - ownerName
+        - status
+        - riskLevel
+        - fuelScores
+        - pendingTasks
+
+    ResidentPhoto:
+      type: object
+      properties:
+        id:
+          type: string
+        apn:
+          type: string
+        zone:
+          type: integer
+          description: Zone number 0, 1, or 2
+        latitude:
+          type: number
+        longitude:
+          type: number
+        timestamp:
+          type: string
+        imageDataUrl:
+          type: string
+          description: Base64-encoded image with stamped metadata
+        submissionId:
+          type: string
+        createdAt:
+          type: string
+      required:
+        - id
+        - apn
+        - zone
+        - latitude
+        - longitude
+        - timestamp
+        - imageDataUrl
+        - submissionId
+        - createdAt
+
+    ResidentPhotoInput:
+      type: object
+      properties:
+        zone:
+          type: integer
+        latitude:
+          type: number
+        longitude:
+          type: number
+        timestamp:
+          type: string
+        imageDataUrl:
+          type: string
+      required:
+        - zone
+        - latitude
+        - longitude
+        - timestamp
+        - imageDataUrl
+
+    ResidentSubmission:
+      type: object
+      properties:
+        apn:
+          type: string
+        photos:
+          type: array
+          items:
+            $ref: "#/components/schemas/ResidentPhotoInput"
+        submitterName:
+          type: string
+        certifiedAccurate:
+          type: boolean
+      required:
+        - apn
+        - photos
+        - submitterName
+        - certifiedAccurate
+
+    ResidentSubmissionResult:
+      type: object
+      properties:
+        submissionId:
+          type: string
+        apn:
+          type: string
+        status:
+          type: string
+        message:
+          type: string
+        photoCount:
+          type: integer
+      required:
+        - submissionId
+        - apn
+        - status
+        - message
+        - photoCount
+
+    DashboardSummary:
+      type: object
+      properties:
+        totalParcels:
+          type: integer
+        byStatus:
+          type: object
+          properties:
+            pending_review:
+              type: integer
+            compliant:
+              type: integer
+            non_compliant:
+              type: integer
+            self_inspection_submitted:
+              type: integer
+          required:
+            - pending_review
+            - compliant
+            - non_compliant
+            - self_inspection_submitted
+        byRiskLevel:
+          type: object
+          properties:
+            high:
+              type: integer
+            medium:
+              type: integer
+            low:
+              type: integer
+          required:
+            - high
+            - medium
+            - low
+        recentActivity:
+          type: array
+          items:
+            $ref: "#/components/schemas/ActivityItem"
+        avgCompositeScore:
+          type: number
+      required:
+        - totalParcels
+        - byStatus
+        - byRiskLevel
+        - recentActivity
+        - avgCompositeScore
+
+    ActivityItem:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum: [inspection, citation, submission, status_change]
+        apn:
+          type: string
+        address:
+          type: string
+        description:
+          type: string
+        timestamp:
+          type: string
+      required:
+        - id
+        - type
+        - apn
+        - address
+        - description
+        - timestamp

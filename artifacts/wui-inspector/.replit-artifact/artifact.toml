@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/"
+title = "WUI Fire Safety Inspector"
+version = "1.0.0"
+id = "artifacts/wui-inspector"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 19426
+
+[services.development]
+run = "pnpm --filter @workspace/wui-inspector run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/wui-inspector", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/wui-inspector/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19426"
+BASE_PATH = "/"
