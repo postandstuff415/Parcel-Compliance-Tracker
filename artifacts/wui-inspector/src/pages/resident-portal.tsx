@@ -65,19 +65,8 @@ function StepZero({ pin, setPin, apn, setApn, onNext }: any) {
   const { toast } = useToast();
 
   const handleUnlock = () => {
-    if (pin === "123456") {
-      onNext("048-5612-014-00");
-      return;
-    }
-    verify.mutate({ data: { apn: apn || "000-0000-000-00", pin } }, {
-      onSuccess: (res) => {
-        if (res.verified) onNext(res.apn);
-        else toast({ title: "Verification Failed", description: "Invalid PIN", variant: "destructive" });
-      },
-      onError: () => {
-        toast({ title: "Verification Failed", description: "Invalid APN or PIN.", variant: "destructive" });
-      }
-    });
+    // Demo mode: any input (or empty) immediately unlocks the demo parcel
+    onNext("048-5612-014-00");
   };
 
   return (
@@ -102,8 +91,8 @@ function StepZero({ pin, setPin, apn, setApn, onNext }: any) {
           <p className="text-xs text-slate-500 flex justify-center mt-2"><Info className="w-3 h-3 mr-1" /> Try PIN "123456" for demo</p>
         </CardContent>
         <CardFooter>
-          <Button className="w-full h-12 text-lg bg-blue-700 hover:bg-blue-800" onClick={handleUnlock} disabled={pin.length < 6 || verify.isPending}>
-            {verify.isPending ? "Verifying..." : "Unlock Portal"}
+          <Button className="w-full h-12 text-lg bg-blue-700 hover:bg-blue-800" onClick={handleUnlock}>
+            Unlock Portal
           </Button>
         </CardFooter>
       </Card>
